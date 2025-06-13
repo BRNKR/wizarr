@@ -10,6 +10,25 @@
             {{ form.server_name(class="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary focus:border-primary block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white") }}
             {% for err in form.server_name.errors %}<p class="text-red-500 text-sm">{{ err }}</p>{% endfor %}
           </div>
+          
+          <div>
+            {{ form.server_logo_url.label(class="block mb-2 text-sm font-medium text-gray-900 dark:text-white") }}
+            {{ form.server_logo_url(class="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary focus:border-primary block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white", placeholder="https://example.com/logo.png") }}
+            {% if form.server_logo_url.description %}
+              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ form.server_logo_url.description }}</p>
+            {% endif %}
+            {% for err in form.server_logo_url.errors %}<p class="text-red-500 text-sm">{{ err }}</p>{% endfor %}
+          </div>
+          
+          <div>
+            {{ form.admin_email.label(class="block mb-2 text-sm font-medium text-gray-900 dark:text-white") }}
+            {{ form.admin_email(class="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary focus:border-primary block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white", placeholder="admin@example.com") }}
+            {% if form.admin_email.description %}
+              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ form.admin_email.description }}</p>
+            {% endif %}
+            {% for err in form.admin_email.errors %}<p class="text-red-500 text-sm">{{ err }}</p>{% endfor %}
+          </div>
+          
           <div>
             {{ form.overseerr_url.label(class="block mb-2 text-sm font-medium text-gray-900 dark:text-white") }}
             {{ form.overseerr_url(class="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary focus:border-primary block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white") }}
