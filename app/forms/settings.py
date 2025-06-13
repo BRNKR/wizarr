@@ -7,7 +7,7 @@ from wtforms.validators import DataRequired, Optional, URL, NumberRange
 class SettingsForm(FlaskForm):
     server_type   = SelectField(
         "Server Type",
-        choices=[("plex", "Plex"), ("jellyfin", "Jellyfin"), ("emby", "Emby")],
+        choices=[("plex", "Plex"), ("jellyfin", "Jellyfin"), ("emby", "Emby"), ("audiobookshelf", "Audiobookshelf")],
         validators=[DataRequired()],
     )
     server_name   = StringField("Server Name",   validators=[DataRequired()])
@@ -21,6 +21,7 @@ class SettingsForm(FlaskForm):
     ombi_api_key  = StringField("Ombi API Key",  validators=[Optional()])
     discord_id    = StringField("Discord ID",    validators=[Optional()])
     admin_email   = StringField("Admin Email",   validators=[Optional()], description="Contact email for users")
+    external_url  = StringField("External URL", validators=[Optional()])
     
 
     def __init__(self, install_mode: bool = False, *args, **kwargs):

@@ -1,7 +1,7 @@
 # app/middleware.py
 from flask import request, redirect, url_for, session, g
 from flask_login import current_user
-from app.models import Settings, User
+from app.models import Settings, User, MediaServer
 from datetime import datetime, timezone
 import logging
 
@@ -11,13 +11,12 @@ def require_onboarding():
     if any(request.path.startswith(path) for path in skip_paths):
         return
     
-    # Check if server is configured
-    server_verified = (
-        Settings.query
-        .filter_by(key="server_verified")
-        .first()
-    )
-    if not server_verified or server_verified.value != "true":
+    # Check if an admin user exists
+    admin_setting = Settings.query.filter_by(key="admin_username").first()
+    if not admin_setting or not admin_setting.value:
+        return redirect(url_for('setup.onboarding'))
+    # Require at least one MediaServer to exist
+    if not MediaServer.query.first():
         return redirect(url_for('setup.onboarding'))
 
 
@@ -28,20 +27,24 @@ def _revoke_expired_user_access(user):
         if hasattr(user, '_access_revoked') and user._access_revoked:
             return
             
-        # Get server type from settings
-        settings = {s.key: s.value for s in Settings.query.all()}
-        server_type = settings.get("server_type")
+        # Get server type from user's media server
+        server = user.server
+        if not server:
+            logging.warning(f"No server associated with user {user.username}")
+            return
+            
+        server_type = server.server_type
         
         if server_type == "plex":
             from app.services.media.plex import PlexClient
-            client = PlexClient()
+            client = PlexClient(media_server=server)
             # Disable user from Plex server (preserves account for Ko-fi restoration)
             client.disable_user(user.email)
             logging.info(f"Disabled Plex access for expired user: {user.email}")
             
         elif server_type in ["jellyfin", "emby"]:
             from app.services.media.jellyfin import JellyfinClient
-            client = JellyfinClient()
+            client = JellyfinClient(media_server=server)
             # Disable user from Jellyfin/Emby server (preserves account for Ko-fi restoration)
             client.disable_user(user.token)  # token is the user ID for Jellyfin/Emby
             logging.info(f"Disabled {server_type} access for expired user: {user.username}")

@@ -3,7 +3,7 @@ from pathlib import Path
 import frontmatter, markdown
 from flask import Blueprint, render_template, abort, request, session, redirect
 from flask_login import current_user
-from app.models import Settings
+from app.models import Settings, MediaServer, Invitation
 from app.services.ombi_client import run_all_importers
 
 
@@ -21,7 +21,32 @@ def restrict_wizard():
 
 # ─── helpers ────────────────────────────────────────────────────
 def _settings() -> dict[str, str | None]:
-    return {s.key: s.value for s in Settings.query.all()}
+    data = {s.key: s.value for s in Settings.query.all()}
+
+    # 1️⃣  Override via current invitation (if any)
+    inv_code = session.get("wizard_access")
+    if inv_code:
+        inv = Invitation.query.filter_by(code=inv_code).first()
+        if inv and inv.server:
+            srv = inv.server
+            data["server_type"] = srv.server_type
+            # Prefer external_url; fallback to internal url
+            data["server_url"] = srv.external_url or srv.url
+
+    # Prefer the explicitly configured external URL if present
+    if data.get("external_url"):
+        data.setdefault("server_url", data["external_url"])
+
+    # Otherwise, derive from MediaServer row (external_url -> url)
+    if "server_url" not in data or not data["server_url"]:
+        # Determine server_type preference
+        stype = data.get("server_type")
+        row = (
+            MediaServer.query.filter_by(server_type=stype).first() if stype else MediaServer.query.first()
+        )
+        if row:
+            data["server_url"] = row.external_url or row.url
+    return data
 
 
 def _eligible(post: frontmatter.Post, cfg: dict) -> bool:
@@ -36,7 +61,12 @@ def _steps(server: str, cfg: dict):
 
 def _render(post: frontmatter.Post, ctx: dict) -> str:
     from flask import render_template_string
-    md = render_template_string(post.content, **ctx)
+    # Jinja templates inside the markdown files expect a top-level `settings` variable.
+    # Build a context copy that exposes the current config dictionary via this key
+    # while still passing through all existing entries and utilities (e.g. the _() gettext).
+    _vars = ctx.copy()
+    _vars.setdefault("settings", ctx)  # avoid overwriting if already provided
+    md = render_template_string(post.content, **_vars)
     return markdown.markdown(md, extensions=["fenced_code", "tables", "attr_list"])
 
 
@@ -66,9 +96,20 @@ def _serve(server: str, idx: int):
 # ─── routes ─────────────────────────────────────────────────────
 @wizard_bp.route("/")
 def start():
+    """Entry point – choose wizard folder based on invitation or global settings."""
     run_all_importers()
-    server = _settings().get("server_type", "plex") or "plex"
-    return _serve(server, 0)
+
+    inv_code = session.get("wizard_access")
+    server_type = None
+    if inv_code:
+        inv = Invitation.query.filter_by(code=inv_code).first()
+        if inv and inv.server:
+            server_type = inv.server.server_type
+
+    if not server_type:
+        server_type = _settings().get("server_type", "plex") or "plex"
+
+    return _serve(server_type, 0)
 
 
 @wizard_bp.route("/<server>/<int:idx>")
