@@ -38,6 +38,22 @@
 
                     {{ _("Notifications") }}
                 </button>
+
+                <button
+                    class="tab-btn flex-1 flex items-center justify-center gap-1"
+                    hx-get="{{ url_for('settings.payment_settings') }}"
+                    hx-target="#tab-body" hx-swap="innerHTML"
+                >
+                    <svg class="w-6 h-6 text-gray-800 dark:text-white" aria-hidden="true"
+                         xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor"
+                         viewBox="0 0 24 24">
+                        <path d="M12 7.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5Z"/>
+                        <path fill-rule="evenodd" d="M1.917 9.5A10.003 10.003 0 0 1 12 2.5a10.003 10.003 0 0 1 10.083 7H20.5a8.5 8.5 0 0 0-17 0H1.917ZM3.5 12a8.5 8.5 0 0 0 17 0h1.583A10.003 10.003 0 0 1 12 21.5 10.003 10.003 0 0 1 1.917 14.5H3.5Z" clip-rule="evenodd"/>
+                        <path d="M12 1a1 1 0 0 1 1 1v1.5a1 1 0 1 1-2 0V2a1 1 0 0 1 1-1Zm0 19a1 1 0 0 1 1 1v1.5a1 1 0 1 1-2 0V21a1 1 0 0 1 1-1Z"/>
+                    </svg>
+
+                    {{ _("Payment") }}
+                </button>
             </div>
 
             <div id="tab-body" class="animate__animated animate__fadeIn"></div>

@@ -26,6 +26,15 @@ def is_invite_valid(code: str) -> Tuple[bool, str]:
         return False, "Invitation has expired."
     if invitation.used is True and invitation.unlimited is not True:
         return False, "Invitation has already been used."
+    
+    # Check if there's already a user with this invitation code
+    # This handles cases where the invitation hasn't been marked as used yet
+    # but a user was already created with this code
+    from app.models import User
+    existing_user = User.query.filter_by(code=code).first()
+    if existing_user and not invitation.unlimited:
+        return False, "Invitation has already been used."
+    
     return True, "okay"
 
 

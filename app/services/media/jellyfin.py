@@ -65,6 +65,45 @@ class JellyfinClient(MediaClient):
 
     def delete_user(self, user_id: str) -> None:
         self.delete(f"/Users/{user_id}")
+    
+    def disable_user(self, user_id: str) -> None:
+        """Disable a user by setting their policy to block access."""
+        try:
+            current = self.get_user(user_id)
+            # Disable the user by setting restrictive policies
+            disabled_policy = current.get("Policy", {})
+            disabled_policy.update({
+                "IsDisabled": True,
+                "EnableAllFolders": False,
+                "EnabledFolders": [],
+                "EnablePublicSharing": False,
+                "EnableLiveTvAccess": False,
+                "EnableLiveTvManagement": False,
+                "EnableContentDeletion": False,
+                "EnableContentDownloading": False
+            })
+            self.set_policy(user_id, disabled_policy)
+        except Exception as e:
+            # If disable fails, fall back to deletion as last resort
+            self.delete_user(user_id)
+            raise e
+    
+    def enable_user(self, user_id: str, libraries: list = None) -> None:
+        """Re-enable a disabled user and restore their library access."""
+        try:
+            current = self.get_user(user_id)
+            enabled_policy = current.get("Policy", {})
+            enabled_policy.update({
+                "IsDisabled": False,
+                "EnableAllFolders": not bool(libraries),
+                "EnabledFolders": libraries or [],
+                "EnablePublicSharing": False,
+                "EnableLiveTvAccess": True,
+                "EnableContentDownloading": True
+            })
+            self.set_policy(user_id, enabled_policy)
+        except Exception as e:
+            raise e
 
     def get_user(self, jf_id: str) -> dict:
         return self.get(f"/Users/{jf_id}").json()
@@ -105,7 +144,11 @@ class JellyfinClient(MediaClient):
 
         for dbu in User.query.all():
             if dbu.token not in jf_users:
-                db.session.delete(dbu)
+                # Don't delete users from Wizarr DB if they're not on Jellyfin server
+                # They might be disabled/expired users that should remain for Ko-fi restoration
+                # Only delete if they have no expiry date (meaning they were never properly set up)
+                if not dbu.expires and dbu.code in ["None", "empty"]:
+                    db.session.delete(dbu)
         db.session.commit()
 
         return User.query.all()

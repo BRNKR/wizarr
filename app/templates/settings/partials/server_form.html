@@ -47,6 +47,19 @@
             {% endfor %}
           </div>
 
+          {# Server Logo URL #}
+          <div>
+            {{ form.server_logo_url.label(class="block mb-2 text-sm font-medium text-gray-900 dark:text-white") }}
+            {{ form.server_logo_url(
+                class="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary focus:border-primary block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white",
+                placeholder="https://example.com/logo.png"
+              ) }}
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ form.server_logo_url.description }}</p>
+            {% for err in form.server_logo_url.errors %}
+              <p class="mt-1 text-sm text-red-600 dark:text-red-500">{{ err }}</p>
+            {% endfor %}
+          </div>
+
           {# Server Type #}
           <div>
             {{ form.server_type.label(class="block mb-2 text-sm font-medium text-gray-900 dark:text-white") }}
@@ -162,6 +175,19 @@
                 placeholder=_("Optional, leave empty to disable")
               ) }}
             {% for err in form.discord_id.errors %}
+              <p class="mt-1 text-sm text-red-600 dark:text-red-500">{{ err }}</p>
+            {% endfor %}
+          </div>
+
+          {# Admin Email #}
+          <div>
+            {{ form.admin_email.label(class="block mb-2 text-sm font-medium text-gray-900 dark:text-white") }}
+            {{ form.admin_email(
+                class="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary focus:border-primary block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white",
+                placeholder=_("admin@example.com")
+              ) }}
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ form.admin_email.description }}</p>
+            {% for err in form.admin_email.errors %}
               <p class="mt-1 text-sm text-red-600 dark:text-red-500">{{ err }}</p>
             {% endfor %}
           </div>

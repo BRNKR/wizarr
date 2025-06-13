@@ -1,7 +1,7 @@
 # app/forms/settings.py
 from flask_wtf import FlaskForm
-from wtforms import StringField, SelectField, TextAreaField, BooleanField
-from wtforms.validators import DataRequired, Optional, URL
+from wtforms import StringField, SelectField, TextAreaField, BooleanField, DecimalField
+from wtforms.validators import DataRequired, Optional, URL, NumberRange
 
 
 class SettingsForm(FlaskForm):
@@ -11,6 +11,7 @@ class SettingsForm(FlaskForm):
         validators=[DataRequired()],
     )
     server_name   = StringField("Server Name",   validators=[DataRequired()])
+    server_logo_url = StringField("Server Logo URL", validators=[Optional(), URL()], description="URL to your server logo image")
     server_url    = StringField("Server URL",    validators=[DataRequired()])
     api_key       = StringField("API Key",       validators=[Optional()])
     libraries     = StringField("Libraries",     validators=[Optional()])
@@ -19,6 +20,7 @@ class SettingsForm(FlaskForm):
     overseerr_url = StringField("Overseerr/Ombi URL", validators=[Optional(), URL()])
     ombi_api_key  = StringField("Ombi API Key",  validators=[Optional()])
     discord_id    = StringField("Discord ID",    validators=[Optional()])
+    admin_email   = StringField("Admin Email",   validators=[Optional()], description="Contact email for users")
     
 
     def __init__(self, install_mode: bool = False, *args, **kwargs):
@@ -29,3 +31,12 @@ class SettingsForm(FlaskForm):
             self.libraries.validators = [DataRequired()]
             # api_key is mandatory for Plex/Jellyfin
             self.api_key.validators = [DataRequired()]
+
+
+class PaymentSettingsForm(FlaskForm):
+    kofi_account_url = StringField("Ko-fi Account URL", validators=[Optional(), URL()], description="Your Ko-fi profile URL (e.g., https://ko-fi.com/yourusername)")
+    kofi_username = StringField("Ko-fi Username", validators=[Optional()], description="Your Ko-fi username (e.g., yourusername)")
+    kofi_verification_token = StringField("Ko-fi Verification Token", validators=[Optional()])
+    kofi_1_month_price = DecimalField("1 Month Price (USD)", validators=[Optional(), NumberRange(min=0.01)], places=2)
+    kofi_3_month_price = DecimalField("3 Month Price (USD)", validators=[Optional(), NumberRange(min=0.01)], places=2)  
+    kofi_6_month_price = DecimalField("6 Month Price (USD)", validators=[Optional(), NumberRange(min=0.01)], places=2)

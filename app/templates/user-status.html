@@ -1,0 +1,359 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _("My Account") }}{% endblock %}
+
+{% block main %}
+<section class="bg-gray-50 dark:bg-gray-900 py-8 animate__animated animate__fadeIn">
+  <div class="flex justify-center">
+    <div class="w-full max-w-4xl bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+      <!-- Header -->
+      <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+        <div class="flex items-center justify-between">
+          <div>
+            <h1 class="text-3xl font-bold text-gray-900 dark:text-white">
+              {{ _("My Account") }}
+            </h1>
+            <p class="text-gray-600 dark:text-gray-400 mt-1">
+              {{ _("Manage your subscription and view payment history") }}
+            </p>
+          </div>
+          <div class="flex items-center space-x-4">
+            <a href="{{ url_for('wizard.start') }}" 
+               class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md shadow-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+              <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+              </svg>
+              {{ _("Back to Guide") }}
+            </a>
+            <a href="{{ url_for('auth.user_logout') }}" 
+               class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md shadow-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+              <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+              </svg>
+              {{ _("Logout") }}
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div class="p-6 space-y-6">
+        <!-- Subscription Status Card -->
+        <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
+          <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+            {{ _("Subscription Status") }}
+          </h2>
+          
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- Status Badge -->
+            <div class="text-center">
+              {% if is_active %}
+                <div class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                  <svg class="h-4 w-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                  </svg>
+                  {{ _("Active") }}
+                </div>
+              {% else %}
+                <div class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                  <svg class="h-4 w-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L10 10.414l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                  </svg>
+                  {{ _("Expired") }}
+                </div>
+              {% endif %}
+            </div>
+
+            <!-- User Info -->
+            <div class="text-center">
+              <p class="text-sm text-gray-500 dark:text-gray-400">{{ _("Account") }}</p>
+              <p class="font-medium text-gray-900 dark:text-white">{{ user.username }}</p>
+              <p class="text-sm text-gray-500 dark:text-gray-400">{{ user.email }}</p>
+            </div>
+
+            <!-- Expiry Info -->
+            <div class="text-center">
+              {% if user_expires %}
+                <p class="text-sm text-gray-500 dark:text-gray-400">
+                  {% if is_active %}
+                    {{ _("Expires") }}
+                  {% else %}
+                    {{ _("Expired") }}
+                  {% endif %}
+                </p>
+                <p class="font-medium text-gray-900 dark:text-white">
+                  {{ user_expires.strftime('%B %d, %Y') }}
+                </p>
+                {% if days_remaining is not none %}
+                  <p class="text-sm {% if days_remaining <= 7 %}text-red-600{% elif days_remaining <= 30 %}text-yellow-600{% else %}text-green-600{% endif %}">
+                    {% if days_remaining > 0 %}
+                      {{ days_remaining }} {{ _("days remaining") }}
+                    {% else %}
+                      {{ _("Expired") }}
+                    {% endif %}
+                  </p>
+                {% endif %}
+              {% else %}
+                <p class="text-sm text-gray-500 dark:text-gray-400">{{ _("Subscription") }}</p>
+                <p class="font-medium text-green-600">{{ _("Unlimited") }}</p>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Expiry Warning -->
+          {% if is_active and days_remaining is not none and days_remaining <= 7 %}
+            <div class="mt-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+              <div class="flex items-center">
+                <svg class="h-5 w-5 text-yellow-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                </svg>
+                <span class="text-yellow-800 dark:text-yellow-200 font-medium">
+                  {{ _("Your subscription expires soon!") }}
+                </span>
+              </div>
+            </div>
+          {% endif %}
+        </div>
+
+        <!-- Payment Options (if available and needed) -->
+        {% if payment_available and (not is_active or (is_active and days_remaining is not none and days_remaining <= 30)) %}
+        <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
+          <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+            {% if is_active %}
+              {{ _("Extend Subscription") }}
+            {% else %}
+              {{ _("Renew Subscription") }}
+            {% endif %}
+          </h2>
+          
+          <div class="mb-4">
+            <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+              <div class="flex items-start">
+                <svg class="h-5 w-5 text-blue-400 mt-0.5 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                </svg>
+                <div class="text-sm text-blue-700 dark:text-blue-300">
+                  <p><strong>{{ _("Important:") }}</strong> {{ _("When making a Ko-fi payment, please include your email address") }} <code class="bg-blue-100 dark:bg-blue-800 px-1 rounded">{{ user.email }}</code> {{ _("in the payment message.") }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {% if kofi_settings.kofi_1_month_price %}
+            <div class="border border-gray-200 dark:border-gray-600 rounded-lg p-4 text-center">
+              <h3 class="font-semibold text-lg text-gray-900 dark:text-white mb-2">{{ _("1 Month") }}</h3>
+              <p class="text-2xl font-bold text-primary mb-4">${{ kofi_settings.kofi_1_month_price }}</p>
+              <button onclick="openKofiWidget('{{ kofi_settings.kofi_1_month_price }}', '1')" 
+                      class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-500 hover:bg-red-600 w-full justify-center">
+                <svg class="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M23.881 8.948c-.773-4.085-4.859-4.593-4.859-4.593H.723c-.604 0-.679.798-.679.798s-.082 7.324-.033 11.596c.049 4.271 3.468 7.251 7.741 7.251h9.688c.934 0 1.861-.778 1.861-1.731V8.948z"/>
+                </svg>
+                {{ _("Pay with Ko-fi") }}
+              </button>
+            </div>
+            {% endif %}
+
+            {% if kofi_settings.kofi_3_month_price %}
+            <div class="border border-gray-200 dark:border-gray-600 rounded-lg p-4 text-center relative">
+              <div class="absolute -top-2 left-1/2 transform -translate-x-1/2">
+                <span class="bg-green-500 text-white px-2 py-1 rounded-full text-xs font-semibold">
+                  {{ _("Popular") }}
+                </span>
+              </div>
+              <h3 class="font-semibold text-lg text-gray-900 dark:text-white mb-2 mt-2">{{ _("3 Months") }}</h3>
+              <p class="text-2xl font-bold text-primary mb-4">${{ kofi_settings.kofi_3_month_price }}</p>
+              <button onclick="openKofiWidget('{{ kofi_settings.kofi_3_month_price }}', '3')" 
+                      class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-500 hover:bg-red-600 w-full justify-center">
+                <svg class="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M23.881 8.948c-.773-4.085-4.859-4.593-4.859-4.593H.723c-.604 0-.679.798-.679.798s-.082 7.324-.033 11.596c.049 4.271 3.468 7.251 7.741 7.251h9.688c.934 0 1.861-.778 1.861-1.731V8.948z"/>
+                </svg>
+                {{ _("Pay with Ko-fi") }}
+              </button>
+            </div>
+            {% endif %}
+
+            {% if kofi_settings.kofi_6_month_price %}
+            <div class="border border-gray-200 dark:border-gray-600 rounded-lg p-4 text-center relative">
+              <div class="absolute -top-2 left-1/2 transform -translate-x-1/2">
+                <span class="bg-blue-500 text-white px-2 py-1 rounded-full text-xs font-semibold">
+                  {{ _("Best Value") }}
+                </span>
+              </div>
+              <h3 class="font-semibold text-lg text-gray-900 dark:text-white mb-2 mt-2">{{ _("6 Months") }}</h3>
+              <p class="text-2xl font-bold text-primary mb-4">${{ kofi_settings.kofi_6_month_price }}</p>
+              <button onclick="openKofiWidget('{{ kofi_settings.kofi_6_month_price }}', '6')" 
+                      class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-500 hover:bg-red-600 w-full justify-center">
+                <svg class="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M23.881 8.948c-.773-4.085-4.859-4.593-4.859-4.593H.723c-.604 0-.679.798-.679.798s-.082 7.324-.033 11.596c.049 4.271 3.468 7.251 7.741 7.251h9.688c.934 0 1.861-.778 1.861-1.731V8.948z"/>
+                </svg>
+                {{ _("Pay with Ko-fi") }}
+              </button>
+            </div>
+            {% endif %}
+          </div>
+
+          <div class="mt-6 text-center">
+            <button onclick="checkPaymentStatus()" 
+                    class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md shadow-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+              <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+              </svg>
+              {{ _("Check Payment Status") }}
+            </button>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">
+              {{ _("Click this button after making a payment to refresh your subscription status.") }}
+            </p>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Payment History -->
+        {% if payments %}
+        <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
+          <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+            {{ _("Payment History") }}
+          </h2>
+          
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <thead class="bg-gray-50 dark:bg-gray-700">
+                <tr>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    {{ _("Date") }}
+                  </th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    {{ _("Amount") }}
+                  </th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    {{ _("Extension") }}
+                  </th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    {{ _("From") }}
+                  </th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    {{ _("Status") }}
+                  </th>
+                </tr>
+              </thead>
+              <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                {% for payment in payments %}
+                <tr>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                    {{ payment.created_at.strftime('%b %d, %Y') }}
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                    ${{ payment.amount }} {{ payment.currency }}
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                    {{ payment.extension_months }} {{ _("month(s)") }}
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                    {{ payment.from_name }}
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    {% if payment.processed %}
+                      <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                        {{ _("Processed") }}
+                      </span>
+                    {% else %}
+                      <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                        {{ _("Pending") }}
+                      </span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- No Payment History Message -->
+        {% if not payments and payment_available %}
+        <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
+          <div class="text-center py-8">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/>
+            </svg>
+            <h3 class="mt-4 text-lg font-medium text-gray-900 dark:text-white">{{ _("No payments yet") }}</h3>
+            <p class="mt-2 text-gray-500 dark:text-gray-400">
+              {{ _("Your payment history will appear here after you make a payment.") }}
+            </p>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Ko-fi Widget Script -->
+<script src='https://storage.ko-fi.com/cdn/scripts/overlay-widget.js'></script>
+
+<script>
+// Initialize Ko-fi widget
+{% if kofi_settings.kofi_username %}
+  kofiWidgetOverlay.draw('{{ kofi_settings.kofi_username }}', {
+    'type': 'floating-chat',
+    'floating-chat.donateButton.text': 'Support',
+    'floating-chat.donateButton.background-color': '#ff5f5f',
+    'floating-chat.donateButton.text-color': '#fff'
+  });
+{% endif %}
+
+function openKofiWidget(amount, months) {
+  // Construct donation message with user email and amount info
+  const message = `Subscription extension: ${months} month(s) for $${amount}. User: {{ user.email }}`;
+  
+  {% if kofi_settings.kofi_username %}
+    const kofiUrl = `https://ko-fi.com/{{ kofi_settings.kofi_username }}?hidefeed=true&widget=true&embed=true&preview=true`;
+    
+    // Open Ko-fi in a popup window
+    const popup = window.open(
+      kofiUrl, 
+      'kofi-donation',
+      'width=500,height=700,scrollbars=yes,resizable=yes'
+    );
+    
+    // Focus the popup
+    if (popup) {
+      popup.focus();
+    }
+  {% else %}
+    alert('{{ _("Ko-fi account not configured. Please contact administrator.") }}');
+  {% endif %}
+}
+
+function checkPaymentStatus() {
+  fetch('/payment/check-status')
+    .then(response => response.json())
+    .then(data => {
+      if (data.active) {
+        alert('{{ _("Payment successful! Your subscription has been updated.") }}');
+        window.location.reload();
+      } else {
+        alert('{{ _("No new payments found. Please wait a few minutes after payment and try again.") }}');
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      alert('{{ _("Error checking payment status. Please try again.") }}');
+    });
+}
+
+// Auto-check payment status every 60 seconds if user is expired
+{% if not is_active %}
+setInterval(() => {
+  fetch('/payment/check-status')
+    .then(response => response.json())
+    .then(data => {
+      if (data.active) {
+        window.location.reload();
+      }
+    })
+    .catch(error => console.error('Auto-check error:', error));
+}, 60000);
+{% endif %}
+</script>
+{% endblock %}

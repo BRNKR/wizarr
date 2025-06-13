@@ -16,7 +16,7 @@ def root():
     admin_setting = Settings.query.filter_by(key="admin_username").first()
     if not admin_setting:
         return redirect("/setup/")              # installation wizard
-    return redirect("/admin")
+    return redirect("/user-login")
 
 # ─── Favicon ─────────────────────────────────────────────────────────────────
 @public_bp.route("/favicon.ico")
@@ -41,12 +41,23 @@ def invite(code):
     if server_type == "jellyfin" or server_type == "emby":
         form = JoinForm()
         form.code.data = code
+        
+        # Get server logo URL
+        server_logo_setting = Settings.query.filter_by(key="server_logo_url").first()
+        server_logo_url = server_logo_setting.value if server_logo_setting else None
+        
         return render_template(
             "welcome-jellyfin.html",
             form=form,
             server_type=server_type,
+            server_logo_url=server_logo_url,
         )
-    return render_template("user-plex-login.html", code=code)
+    
+    # Get server logo URL for Plex login too
+    server_logo_setting = Settings.query.filter_by(key="server_logo_url").first()
+    server_logo_url = server_logo_setting.value if server_logo_setting else None
+    
+    return render_template("user-plex-login.html", code=code, server_logo_url=server_logo_url)
 
 # ─── POST /join  (Plex OAuth or Jellyfin signup) ────────────────────────────
 @public_bp.route("/join", methods=["POST"])
@@ -95,3 +106,108 @@ def join():
 def health():
     # If you need to check DB connectivity, do it here.
     return jsonify(status="ok"), 200
+
+
+@public_bp.route("/debug-session", methods=["GET"])
+def debug_session():
+    """Debug route to check session status - remove in production."""
+    from app.models import Invitation
+    
+    debug_info = {
+        "session_wizard_access": session.get("wizard_access"),
+        "session_keys": list(session.keys()),
+    }
+    
+    # Check invitation if wizard_access exists
+    if session.get("wizard_access"):
+        code = session.get("wizard_access")
+        invitation = Invitation.query.filter_by(code=code).first()
+        if invitation:
+            debug_info.update({
+                "invitation_found": True,
+                "invitation_used": invitation.used,
+                "invitation_used_by_id": invitation.used_by.id if invitation.used_by else None,
+                "invitation_used_by_email": invitation.used_by.email if invitation.used_by else None,
+                "invitation_expires": invitation.expires.isoformat() if invitation.expires else None,
+            })
+        else:
+            debug_info["invitation_found"] = False
+    
+    return jsonify(debug_info)
+
+
+@public_bp.route("/my-account")
+def user_status():
+    """User status page showing subscription info and payment options."""
+    user = None
+    invitation = None
+    
+    # Try to get user from wizard session
+    if session.get("wizard_access"):
+        from app.models import Invitation
+        code = session.get("wizard_access")
+        invitation = Invitation.query.filter_by(code=code).first()
+        
+        if not invitation:
+            # Session has invalid invitation code
+            session.pop("wizard_access", None)
+            from flask import flash
+            from flask_babel import _
+            flash(_("Your session has expired. Please use your invitation link again."), "error")
+            return redirect(url_for("public.root"))
+        
+        if invitation and invitation.used_by:
+            user = invitation.used_by
+        elif invitation:
+            # Check if there's a user associated with this invitation code even if used_by isn't set
+            # This handles cases where background processes haven't completed yet
+            from app.models import User
+            user = User.query.filter_by(code=code).first()
+            
+            if not user:
+                # No user found - user hasn't completed signup yet
+                from flask import flash
+                from flask_babel import _
+                flash(_("Please complete your account setup first."), "info")
+                return redirect(url_for("wizard.start"))
+    
+    if not user:
+        # No wizard session - redirect to user login
+        from flask import flash
+        from flask_babel import _
+        flash(_("Please sign in with your invitation code to access your account."), "info")
+        return redirect(url_for("auth.user_login"))
+    
+    # Get Ko-fi payment settings to show payment options
+    from app.services.kofi import KofiService
+    kofi_settings = KofiService.get_kofi_settings()
+    payment_available = any(kofi_settings.values())
+    
+    # Get user's payment history
+    from app.models import Payment
+    payments = Payment.query.filter_by(user_id=user.id).order_by(Payment.created_at.desc()).all()
+    
+    # Calculate subscription status
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+    
+    # Handle timezone-naive datetime comparison
+    user_expires = user.expires
+    if user_expires and not user_expires.tzinfo:
+        user_expires = user_expires.replace(tzinfo=timezone.utc)
+    
+    is_active = user_expires is None or user_expires > now
+    days_remaining = None
+    
+    if user_expires and is_active:
+        days_remaining = (user_expires - now).days
+    
+    return render_template("user-status.html", 
+                         user=user,
+                         invitation=invitation,
+                         is_active=is_active,
+                         days_remaining=days_remaining,
+                         user_expires=user_expires,
+                         payments=payments,
+                         payment_available=payment_available,
+                         kofi_settings=kofi_settings)

@@ -89,6 +89,70 @@ class PlexClient(MediaClient):
                 self.admin.removeFriend(email)
             except Exception as e:
                 logging.error("Error removing friend: %s", e)
+    
+    def disable_user(self, email: str) -> None:
+        """Disable a Plex user by removing them from all shared libraries."""
+        try:
+            # For Plex, we'll remove access to all libraries (disable) but keep the friendship
+            # This is a compromise since Plex doesn't have a true "disable" feature
+            plex_user = self.admin.user(email)
+            if plex_user:
+                # Update user with no library access
+                self.admin.updateFriend(
+                    email,
+                    self.server,
+                    sections=[],  # Remove access to all sections
+                    allowSync=False,
+                    allowChannels=False,
+                    allowCameraUpload=False
+                )
+                logging.info(f"Disabled Plex user by removing library access: {email}")
+        except Exception as e:
+            logging.error(f"Failed to disable Plex user {email}: {e}")
+            # If we can't disable, we'll have to remove them entirely
+            self.delete_user(email)
+    
+    def enable_user(self, email: str, libraries: list = None) -> None:
+        """Re-enable a Plex user by restoring their library access."""
+        try:
+            # Check if user still exists as a friend
+            plex_user = self.admin.user(email)
+            if not plex_user:
+                # User was removed, need to re-invite them
+                # Get the original invitation settings for this user
+                from app.models import User, Invitation
+                user_record = User.query.filter_by(email=email).first()
+                if user_record:
+                    invitation = Invitation.query.filter_by(used_by_id=user_record.id).first()
+                    if invitation:
+                        allow_sync = bool(invitation.plex_allow_sync)
+                        allow_channels = bool(invitation.plex_allow_channels)
+                        if invitation.plex_home:
+                            self.invite_home(email, libraries or [], allow_sync, allow_channels)
+                        else:
+                            self.invite_friend(email, libraries or [], allow_sync, allow_channels)
+                        return
+            
+            # User exists, just update their library access
+            libs_setting = libraries or []
+            if not libs_setting:
+                # Get default libraries if none specified
+                from app.models import Library
+                libs_setting = [lib.external_id for lib in Library.query.filter_by(enabled=True).all()]
+            
+            self.admin.updateFriend(
+                email,
+                self.server,
+                sections=libs_setting,
+                allowSync=True,
+                allowChannels=True,
+                allowCameraUpload=False
+            )
+            logging.info(f"Re-enabled Plex user with library access: {email}")
+            
+        except Exception as e:
+            logging.error(f"Failed to re-enable Plex user {email}: {e}")
+            raise e
 
     @cached(cache=TTLCache(maxsize=1024, ttl=600))
     def list_users(self) -> list[User]:
@@ -105,7 +169,11 @@ class PlexClient(MediaClient):
         known_emails = set(plex_users.keys())
         for db_user in db_users:
             if db_user.email not in known_emails:
-                db.session.delete(db_user)
+                # Don't delete users from Wizarr DB if they're not on Plex server
+                # They might be disabled/expired users that should remain for Ko-fi restoration
+                # Only delete if they have no expiry date (meaning they were never properly set up)
+                if not db_user.expires and db_user.code in ["None", "empty"]:
+                    db.session.delete(db_user)
         db.session.commit()
 
         for plex_user in plex_users.values():

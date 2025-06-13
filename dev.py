@@ -92,8 +92,8 @@ def main():
     )
 
     try:
-        print("Starting Flask development server...")
-        run_command(["uv", "run", "flask", "run", "--debug"])
+        print("Starting Flask development server on port 5001...")
+        run_command(["uv", "run", "flask", "run", "--debug", "--port", "5001"])
     finally:
         # Ensure we clean up the Tailwind process when Flask exits
         tailwind_process.terminate()

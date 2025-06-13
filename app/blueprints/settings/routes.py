@@ -8,7 +8,7 @@ from flask_babel import _
 
 from app.services.media.service import scan_libraries as scan_media
 from ...models import Settings, Library
-from ...forms.settings import SettingsForm
+from ...forms.settings import SettingsForm, PaymentSettingsForm
 from ...services.servers  import check_plex, check_jellyfin
 from ...extensions import db
 
@@ -23,6 +23,16 @@ def _load_settings() -> dict:
     for field in boolean_fields:
         if field in settings:
             settings[field] = settings[field].lower() == "true"
+    
+    # Convert decimal fields from strings to Decimals for the form
+    decimal_fields = ["kofi_1_month_price", "kofi_3_month_price", "kofi_6_month_price"]
+    for field in decimal_fields:
+        if field in settings and settings[field]:
+            try:
+                from decimal import Decimal
+                settings[field] = Decimal(settings[field])
+            except (ValueError, TypeError):
+                settings[field] = None
     
     return settings
 
@@ -165,4 +175,55 @@ def scan_libraries():
       "partials/library_checkboxes.html",
       libs=all_libs
     )
+
+
+@settings_bp.route("/payment", methods=["GET", "POST"])
+@login_required
+def payment_settings():
+    """Handle Ko-fi payment settings."""
+    logging.info(f"Payment settings route called with method: {request.method}")
+    
+    if request.method == "POST":
+        logging.info(f"Form data received: {dict(request.form)}")
+    
+    current = _load_settings()
+    logging.info(f"Current settings loaded: {current}")
+    
+    form = PaymentSettingsForm(
+        formdata=request.form if request.method=="POST" else None,
+        data=current
+    )
+    
+    logging.info(f"Form created, data: {form.data}")
+    
+    if request.method == "POST":
+        logging.info(f"Form validates: {form.validate()}")
+        logging.info(f"Form errors: {form.errors}")
+    
+    if form.validate_on_submit():
+        data = form.data.copy()
+        data.pop("csrf_token", None)
+        
+        # Convert Decimal fields to strings for storage
+        for key, value in data.items():
+            if value is not None:
+                data[key] = str(value)
+        
+        logging.info(f"Saving payment settings: {data}")
+        _save_settings(data)
+        flash(_("Payment settings saved successfully!"), "success")
+        
+        if request.headers.get("HX-Request"):
+            return render_template("settings/partials/payment_form.html", form=form)
+    else:
+        if request.method == "POST":
+            logging.error(f"Payment form validation failed: {form.errors}")
+            for field, errors in form.errors.items():
+                for error in errors:
+                    flash(f"{field}: {error}", "error")
+    
+    if request.headers.get("HX-Request"):
+        return render_template("settings/partials/payment_form.html", form=form)
+    
+    return redirect(url_for("settings.page"))
 

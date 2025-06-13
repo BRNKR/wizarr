@@ -14,6 +14,31 @@ from urllib.parse import urlparse
 admin_bp = Blueprint("admin", __name__)
 
 
+def _revoke_expired_user_access(user):
+    """Revoke access from media server for expired user."""
+    try:
+        # Get server type from settings
+        settings = _load_settings()
+        server_type = settings.get("server_type")
+        
+        if server_type == "plex":
+            from app.services.media.plex import PlexClient
+            client = PlexClient()
+            # Disable user from Plex server (preserves account for Ko-fi restoration)
+            client.disable_user(user.email)
+            logging.info(f"Disabled Plex access for expired user: {user.email}")
+            
+        elif server_type in ["jellyfin", "emby"]:
+            from app.services.media.jellyfin import JellyfinClient
+            client = JellyfinClient()
+            # Disable user from Jellyfin/Emby server (preserves account for Ko-fi restoration)
+            client.disable_user(user.token)  # token is the user ID for Jellyfin/Emby
+            logging.info(f"Disabled {server_type} access for expired user: {user.username}")
+            
+    except Exception as e:
+        logging.error(f"Failed to revoke media server access for user {user.username}: {e}")
+
+
 @admin_bp.route("/admin")
 @login_required
 def dashboard():
@@ -21,11 +46,16 @@ def dashboard():
     update_available = check_update_available(__version__)
     sponsors = get_sponsors()
     print(sponsors)
+    
+    # Get server logo URL for the admin panel
+    settings = _load_settings()
+    server_logo_url = settings.get("server_logo_url")
 
     return render_template("admin.html",
                            update_available=update_available,
                            sponsors=sponsors,
-                           version=__version__)
+                           version=__version__,
+                           server_logo_url=server_logo_url)
 
 
 # Invitations – landing page
@@ -164,11 +194,19 @@ def user_detail(db_id: int):
 
     if request.method == "POST":
         raw = request.form.get("expires")  # "" or 2025-05-22T14:00
+        old_expires = user.expires
         user.expires = datetime.datetime.fromisoformat(raw).date() if raw else None
+        
+        # Check if user is now expired and should lose access
+        if user.expires:
+            now = datetime.datetime.now().date()
+            if user.expires < now:
+                # User is now expired - revoke media server access
+                _revoke_expired_user_access(user)
+        
         db.session.commit()
 
         # Re-render the grid the same way /users/table does
-
         users = list_users(clear_cache=True)
         return render_template("tables/user_card.html", users=users)
 

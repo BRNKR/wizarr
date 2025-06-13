@@ -49,7 +49,8 @@ def list_users(clear_cache: bool = False):
 
 def delete_user(db_id: int) -> None:
     """
-    Delete a user on the configured media server and remove from local DB.
+    Disable a user on the configured media server only (preserving Wizarr DB record for Ko-fi restoration).
+    The user remains visible in admin panel and can be manually re-enabled.
     """
     server_type = _mode()
     client = get_client(server_type)
@@ -57,18 +58,18 @@ def delete_user(db_id: int) -> None:
     if hasattr(client, 'list_users') and hasattr(client.list_users, 'cache_clear'):
         client.list_users.cache_clear()
 
-    # lookup local record and perform remote deletion
+    # lookup local record and perform remote disable only
     user = db.session.get(User, db_id)
     if user:
         if server_type == 'plex':
             email = user.email
             if email and email != 'None':
-                client.delete_user(email)
+                client.disable_user(email)  # Disable on Plex server
         else:
-            client.delete_user(user.token)
-        # remove local record
-        db.session.delete(user)
-        db.session.commit()
+            client.disable_user(user.token)  # Disable on Jellyfin/Emby server
+        
+        # Keep user in Wizarr database - they remain visible in admin panel
+        # User expiry date is already managed separately in the admin interface
 
     if hasattr(client, 'list_users') and hasattr(client.list_users, 'cache_clear'):
         client.list_users.cache_clear()

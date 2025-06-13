@@ -1,8 +1,8 @@
 from flask import Flask
 from .config import DevelopmentConfig
 from .extensions import init_extensions, db
-from .middleware import require_onboarding
-from .models import Invitation, Settings, User, Notification
+from .middleware import require_onboarding, check_user_expiry
+from .models import Invitation, Settings, User, Notification, Payment
 import os
 from .error_handlers import register_error_handlers
 from .logging_config import configure_logging
@@ -20,7 +20,7 @@ def create_app(config_object=DevelopmentConfig):
     print("Initialising extensions")
     init_extensions(app)
     print("Finished Initialising app")
-    from .models import Invitation, Settings, User, Notification
+    from .models import Invitation, Settings, User, Notification, Payment, Payment
     from .tasks import maintenance
 
     
@@ -39,4 +39,5 @@ def create_app(config_object=DevelopmentConfig):
     register_error_handlers(app)
     
     app.before_request(require_onboarding)
+    app.before_request(check_user_expiry)
     return app

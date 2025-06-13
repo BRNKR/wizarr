@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+
+{% block title %}
+User Login
+{% endblock %}
+
+{% block main %}
+
+<section class="bg-gray-50 dark:bg-gray-900">
+  <div class="flex flex-col items-center justify-center px-6 py-8 mx-auto md:h-screen lg:py-0">
+    <div
+      class="w-full bg-white rounded-lg shadow-sm dark:border md:mt-0 sm:max-w-md xl:p-0 dark:bg-gray-800 dark:border-gray-700">
+      {% if server_logo_url %}
+      <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+        <img src="{{ server_logo_url }}" alt="{{ _(server_name) }}" class="w-full h-auto max-h-80 object-contain">
+      </div>
+      {% else %}
+      <div class="flex items-center justify-center p-6 border-b border-gray-200 dark:border-gray-700">
+        <span class="text-2xl font-semibold text-gray-900 dark:text-white">{{ _(server_name) }}</span>
+      </div>
+      {% endif %}
+      <div class="p-6 space-y-4 md:space-y-6 sm:p-8">
+        <h1 class="text-xl font-bold leading-tight tracking-tight text-gray-900 md:text-2xl dark:text-white">
+          {{ _("Access Your Account") }}
+        </h1>
+        <p class="text-sm text-gray-600 dark:text-gray-400">
+          {% if server_type == "plex" %}
+            {{ _("Sign in with your Plex account to access your subscription.") }}
+          {% elif server_type == "jellyfin" %}
+            {{ _("Sign in with your Jellyfin credentials to access your subscription.") }}
+          {% elif server_type == "emby" %}
+            {{ _("Sign in with your Emby credentials to access your subscription.") }}
+          {% else %}
+            {{ _("Sign in to access your account and manage your subscription.") }}
+          {% endif %}
+        </p>
+        {% if error %}
+        <p class="mt-2 text-sm text-red-600 dark:text-red-500"><span class="font-medium">{{ error }}</span></p>
+        {% endif %}
+        
+        {% if server_type == "plex" %}
+          <!-- Plex OAuth Login -->
+          <form class="space-y-4 md:space-y-6" action="/user-login" method="POST">
+            <button type="button" onClick="oauth(); return false;"
+              class="w-full text-white bg-primary hover:bg-primary_hover focus:ring-4 focus:outline-hidden focus:ring-amber-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-primary dark:hover:bg-primary_hover dark:focus:ring-primary_hover">
+              {{ _("Sign in with Plex") }}
+            </button>
+            <input type="hidden" name="token" id="token" value="">
+            <input type="hidden" name="login_type" value="plex">
+          </form>
+          
+        {% elif server_type == "jellyfin" or server_type == "emby" %}
+          <!-- Jellyfin/Emby Login -->
+          <form class="space-y-4 md:space-y-6" action="/user-login" method="POST">
+            <div>
+              <label for="username" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">{{ _("Username") }}</label>
+              <input type="text" name="username" id="username"
+                class="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary focus:border-primary block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                placeholder="{{ _('Enter your username') }}" required="">
+            </div>
+            <div>
+              <label for="password" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">{{ _("Password") }}</label>
+              <input type="password" name="password" id="password"
+                class="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary focus:border-primary block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                placeholder="••••••••" required="">
+            </div>
+            <button type="submit"
+              class="w-full text-white bg-primary hover:bg-primary_hover focus:ring-4 focus:outline-hidden focus:ring-amber-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-primary dark:hover:bg-primary_hover dark:focus:ring-primary_hover">
+              {% if server_type == "jellyfin" %}
+                {{ _("Sign in with Jellyfin") }}
+              {% else %}
+                {{ _("Sign in with Emby") }}
+              {% endif %}
+            </button>
+            <input type="hidden" name="login_type" value="{{ server_type }}">
+          </form>
+          
+        {% else %}
+          <!-- Fallback: Invitation Code -->
+          <form class="space-y-4 md:space-y-6" action="/user-login" method="POST">
+            <div>
+              <label for="invitation_code" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">{{ _("Invitation Code") }}</label>
+              <input type="text" name="invitation_code" id="invitation_code"
+                class="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary focus:border-primary block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                placeholder="{{ _('Enter your invitation code') }}" required="">
+            </div>
+            <button type="submit"
+              class="w-full text-white bg-primary hover:bg-primary_hover focus:ring-4 focus:outline-hidden focus:ring-amber-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-primary dark:hover:bg-primary_hover dark:focus:ring-primary_hover">{{ _("Sign In") }}</button>
+            <input type="hidden" name="login_type" value="code">
+          </form>
+        {% endif %}
+        
+        <div class="text-center">
+          <p class="text-sm text-gray-600 dark:text-gray-400">
+            {{ _("Don't have an account?") }}
+            <a href="mailto:{{ admin_email or 'admin' }}" class="font-medium text-primary hover:underline dark:text-primary">
+              {{ _("Contact admin") }}
+            </a>
+          </p>
+        </div>
+        
+        <div class="text-center">
+          <p class="text-sm text-gray-600 dark:text-gray-400">
+            {{ _("Administrator?") }}
+            <a href="/login" class="font-medium text-primary hover:underline dark:text-primary">
+              {{ _("Admin Login") }}
+            </a>
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+{% if server_type == "plex" %}
+<script src="https://unpkg.com/bowser@2.7.0/es5.js"></script>
+<script>
+    let nanoid = (t = 21) => crypto.getRandomValues(new Uint8Array(t)).reduce(((t, e) => t += (e &= 63) < 36 ? e.toString(36) : e < 62 ? (e - 26).toString(36).toUpperCase() : e > 62 ? "-" : "_"), "");
+
+    async function oauth() {
+        let popup = window.open("", "Plex", 'width=600, height=700, toolbar=no, menubar=no');
+        const browser = window.bowser.getParser(window.navigator.userAgent);
+        const plexHeaders = {
+            Accept: 'application/json',
+            'X-Plex-Product': 'Wizarr',
+            'X-Plex-Version': 'Plex OAuth',
+            'X-Plex-Client-Identifier': nanoid(),
+            'X-Plex-Model': 'Plex OAuth',
+            'X-Plex-Platform': browser.getBrowserName(),
+            'X-Plex-Platform-Version': browser.getBrowserVersion(),
+            'X-Plex-Device': browser.getOSName(),
+            'X-Plex-Device-Name': `${browser.getBrowserName()} (Wizarr)`,
+            'X-Plex-Device-Screen-Resolution': `${window.screen.width}x${window.screen.height}`,
+        }
+        
+        const pin = await fetch("https://plex.tv/api/v2/pins?strong=true", {
+            method: "POST",
+            headers: plexHeaders
+        }).then(r => r.json())
+
+        const params = new URLSearchParams({
+            clientID: plexHeaders['X-Plex-Client-Identifier'],
+            'context[device][product]': plexHeaders['X-Plex-Product'],
+            'context[device][version]': plexHeaders['X-Plex-Version'],
+            'context[device][platform]': plexHeaders['X-Plex-Platform'],
+            'context[device][platformVersion]': plexHeaders['X-Plex-Platform-Version'],
+            'context[device][device]': plexHeaders['X-Plex-Device'],
+            'context[device][deviceName]': plexHeaders['X-Plex-Device-Name'],
+            'context[device][model]': plexHeaders['X-Plex-Model'],
+            'context[device][screenResolution]': plexHeaders['X-Plex-Device-Screen-Resolution'],
+            'context[device][layout]': 'desktop',
+            code: pin.code
+        });
+
+        popup.location.href = `https://app.plex.tv/auth/#!?${params}`;
+
+        const authToken = await new Promise((resolve, reject) => {
+            const interval = setInterval(async () => {
+                if (popup.closed) return location.reload();
+                const resp = await fetch(`https://plex.tv/api/v2/pins/${pin.id}`, {
+                    headers: plexHeaders
+                }).then(r => r.json())
+
+                if (resp?.errors?.length) return location.reload();
+                if (resp?.authToken) {
+                    clearInterval(interval)
+                    resolve(resp.authToken);
+                    return;
+                }
+            }, 1000)
+        });
+        
+        document.querySelector("#token").value = authToken;
+        document.forms[0].submit();
+    }
+</script>
+{% endif %}
+
+{% endblock %}

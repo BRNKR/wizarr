@@ -1,0 +1,117 @@
+{# Ko-fi Payment Settings Form #}
+<form method="post" hx-post="{{ url_for('settings.payment_settings') }}" hx-target="#tab-body" hx-swap="innerHTML" class="space-y-6">
+  {{ form.hidden_tag() }}
+  
+  <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+    <div class="flex items-start">
+      <div class="flex-shrink-0">
+        <svg class="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+        </svg>
+      </div>
+      <div class="ml-3">
+        <h3 class="text-sm font-medium text-blue-800 dark:text-blue-200">
+          {{ _("Ko-fi Payment Setup") }}
+        </h3>
+        <div class="mt-2 text-sm text-blue-700 dark:text-blue-300">
+          <p>{{ _("Configure Ko-fi payments to allow expired users to extend their access. Users must include their email address in the Ko-fi message when making a payment.") }}</p>
+          <p class="mt-2"><strong>{{ _("Webhook URL:") }}</strong> {{ request.url_root }}payment/kofi-webhook</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 gap-6">
+    <div>
+      {{ form.kofi_account_url.label(class="block text-sm font-medium text-gray-700 dark:text-gray-300") }}
+      {{ form.kofi_account_url(class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm dark:bg-gray-700 dark:text-white", placeholder="https://ko-fi.com/yourusername") }}
+      <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+        {{ _("Your Ko-fi profile URL where users will make payments. Example: https://ko-fi.com/yourusername") }}
+      </p>
+      {% if form.kofi_account_url.errors %}
+        {% for error in form.kofi_account_url.errors %}
+          <p class="mt-1 text-sm text-red-600">{{ error }}</p>
+        {% endfor %}
+      {% endif %}
+    </div>
+
+    <div>
+      {{ form.kofi_username.label(class="block text-sm font-medium text-gray-700 dark:text-gray-300") }}
+      {{ form.kofi_username(class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm dark:bg-gray-700 dark:text-white", placeholder="yourusername") }}
+      <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+        {{ _("Your Ko-fi username (without the ko-fi.com/ part). This is used for the Ko-fi widget. Example: yourusername") }}
+      </p>
+      {% if form.kofi_username.errors %}
+        {% for error in form.kofi_username.errors %}
+          <p class="mt-1 text-sm text-red-600">{{ error }}</p>
+        {% endfor %}
+      {% endif %}
+    </div>
+
+    <div>
+      {{ form.kofi_verification_token.label(class="block text-sm font-medium text-gray-700 dark:text-gray-300") }}
+      {{ form.kofi_verification_token(class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm dark:bg-gray-700 dark:text-white") }}
+      <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+        {{ _("Get this from ko-fi.com/manage/webhooks > API > Webhooks > Advanced > Verification Token") }}
+      </p>
+      {% if form.kofi_verification_token.errors %}
+        {% for error in form.kofi_verification_token.errors %}
+          <p class="mt-1 text-sm text-red-600">{{ error }}</p>
+        {% endfor %}
+      {% endif %}
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div>
+        {{ form.kofi_1_month_price.label(class="block text-sm font-medium text-gray-700 dark:text-gray-300") }}
+        <div class="mt-1 relative rounded-md shadow-sm">
+          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <span class="text-gray-500 sm:text-sm">$</span>
+          </div>
+          {{ form.kofi_1_month_price(class="block w-full pl-7 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm dark:bg-gray-700 dark:text-white", placeholder="5.00") }}
+        </div>
+        {% if form.kofi_1_month_price.errors %}
+          {% for error in form.kofi_1_month_price.errors %}
+            <p class="mt-1 text-sm text-red-600">{{ error }}</p>
+          {% endfor %}
+        {% endif %}
+      </div>
+
+      <div>
+        {{ form.kofi_3_month_price.label(class="block text-sm font-medium text-gray-700 dark:text-gray-300") }}
+        <div class="mt-1 relative rounded-md shadow-sm">
+          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <span class="text-gray-500 sm:text-sm">$</span>
+          </div>
+          {{ form.kofi_3_month_price(class="block w-full pl-7 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm dark:bg-gray-700 dark:text-white", placeholder="12.00") }}
+        </div>
+        {% if form.kofi_3_month_price.errors %}
+          {% for error in form.kofi_3_month_price.errors %}
+            <p class="mt-1 text-sm text-red-600">{{ error }}</p>
+          {% endfor %}
+        {% endif %}
+      </div>
+
+      <div>
+        {{ form.kofi_6_month_price.label(class="block text-sm font-medium text-gray-700 dark:text-gray-300") }}
+        <div class="mt-1 relative rounded-md shadow-sm">
+          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <span class="text-gray-500 sm:text-sm">$</span>
+          </div>
+          {{ form.kofi_6_month_price(class="block w-full pl-7 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm dark:bg-gray-700 dark:text-white", placeholder="20.00") }}
+        </div>
+        {% if form.kofi_6_month_price.errors %}
+          {% for error in form.kofi_6_month_price.errors %}
+            <p class="mt-1 text-sm text-red-600">{{ error }}</p>
+          {% endfor %}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="flex justify-end">
+    <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+      {{ _("Save Payment Settings") }}
+    </button>
+  </div>
+</form>

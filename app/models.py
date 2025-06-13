@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from .extensions import db
 from flask_login import UserMixin
 
@@ -15,7 +15,7 @@ class Invitation(db.Model):
     code = db.Column(db.String, nullable=False)
     used = db.Column(db.Boolean, default=False, nullable=False)
     used_at = db.Column(db.DateTime, nullable=True)
-    created = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     used_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     used_by = db.relationship('User', backref=db.backref('invitations', lazy=True))
     expires = db.Column(db.DateTime, nullable=True)
@@ -84,3 +84,21 @@ class Library(db.Model):
         secondary=invite_libraries,
         back_populates="libraries",
     )
+
+
+class Payment(db.Model):
+    __tablename__ = 'payment'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    kofi_transaction_id = db.Column(db.String, unique=True, nullable=False)
+    message_id = db.Column(db.String, unique=True, nullable=False)
+    amount = db.Column(db.String, nullable=False)
+    currency = db.Column(db.String, nullable=False)
+    from_name = db.Column(db.String, nullable=False)
+    message = db.Column(db.String, nullable=True)
+    extension_months = db.Column(db.Integer, nullable=False)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    processed = db.Column(db.Boolean, default=False, nullable=False)
+    processed_at = db.Column(db.DateTime, nullable=True)
+    
+    user = db.relationship('User', backref=db.backref('payments', lazy=True))
