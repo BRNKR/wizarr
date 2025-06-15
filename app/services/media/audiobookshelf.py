@@ -342,4 +342,26 @@ class AudiobookshelfClient(MediaClient):
             return True, ""
         except Exception as exc:
             logging.error("ABS join failed: %s", exc, exc_info=True)
-            return False, "Failed to create user – please contact the admin." 
+            return False, "Failed to create user – please contact the admin."
+
+    def validate_user_credentials(self, username: str, password: str) -> bool:
+        """Validate user credentials against Audiobookshelf server."""
+        try:
+            # Attempt to authenticate with Audiobookshelf API
+            auth_payload = {
+                "username": username,
+                "password": password
+            }
+            
+            response = requests.post(
+                f"{self.url}{self.API_PREFIX}/login",
+                json=auth_payload,
+                headers={"Content-Type": "application/json"},
+                timeout=10
+            )
+            
+            return response.status_code == 200
+            
+        except Exception:
+            logging.error("Audiobookshelf credential validation error", exc_info=True)
+            return False

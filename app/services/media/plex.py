@@ -225,6 +225,15 @@ class PlexClient(MediaClient):
 
         return users
 
+    def validate_user_credentials(self, username: str, password: str) -> bool:
+        """Validate user credentials against Plex server.
+        
+        For Plex, this is typically not used as Plex uses OAuth.
+        Always returns False since Plex uses OAuth authentication.
+        """
+        # Plex uses OAuth, so direct credential validation is not applicable
+        return False
+
 
 
 

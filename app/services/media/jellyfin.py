@@ -283,4 +283,26 @@ class JellyfinClient(MediaClient):
             db.session.rollback()
             return False, "An unexpected error occurred."
 
+    def validate_user_credentials(self, username: str, password: str) -> bool:
+        """Validate user credentials against Jellyfin server."""
+        try:
+            # Attempt to authenticate with Jellyfin API
+            auth_payload = {
+                "Username": username,
+                "Pw": password
+            }
+            
+            response = requests.post(
+                f"{self.url}/Users/authenticatebyname",
+                json=auth_payload,
+                headers={"Content-Type": "application/json"},
+                timeout=10
+            )
+            
+            return response.status_code == 200
+            
+        except Exception:
+            logging.error("Jellyfin credential validation error", exc_info=True)
+            return False
+
 # ─── Admin-side helpers – mirror the Plex API we already exposed ──────────

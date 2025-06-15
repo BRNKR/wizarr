@@ -1,7 +1,8 @@
-from flask import Blueprint, render_template, request, redirect, session, url_for, flash
+from flask import Blueprint, render_template, request, redirect, session, url_for, flash, jsonify
 from werkzeug.security import check_password_hash
-from app.models import Settings, AdminUser, Invitation
+from app.models import Settings, AdminUser, Invitation, User, MediaServer
 from app.extensions import db
+from app.services.media.service import get_client_for_media_server
 import os, logging
 from flask_babel import _
 from flask_login import login_user, logout_user, login_required
@@ -55,11 +56,7 @@ def login():
 
 @auth_bp.route("/user-login", methods=["GET", "POST"])
 def user_login():
-    """User login using media server authentication or invitation code."""
-    # Get server type for the template
-    server_type_setting = Settings.query.filter_by(key="server_type").first()
-    server_type = server_type_setting.value if server_type_setting else None
-    
+    """User login using email-based authentication."""
     if request.method == "GET":
         # Get admin email setting
         admin_email_setting = Settings.query.filter_by(key="admin_email").first()
@@ -69,16 +66,33 @@ def user_login():
         server_logo_setting = Settings.query.filter_by(key="server_logo_url").first()
         server_logo_url = server_logo_setting.value if server_logo_setting else None
         
-        return render_template("user-login.html", server_type=server_type, admin_email=admin_email, server_logo_url=server_logo_url)
+        return render_template("user-login.html", admin_email=admin_email, server_logo_url=server_logo_url)
     
-    login_type = request.form.get("login_type", "code")
+    return _handle_email_login()
+
+
+@auth_bp.route("/api/detect-auth-method", methods=["POST"])
+def detect_auth_method():
+    """API endpoint to detect authentication method for an email."""
+    data = request.get_json()
+    email = data.get("email", "").strip().lower()
     
-    if login_type == "plex":
-        return _handle_plex_login(server_type)
-    elif login_type in ["jellyfin", "emby"]:
-        return _handle_jellyfin_emby_login(login_type, server_type)
+    if not email or "@" not in email:
+        return jsonify({"auth_method": "none"})
+    
+    # Find user by email
+    user = User.query.filter(User.email.ilike(email)).first()
+    
+    if not user or not user.server:
+        return jsonify({"auth_method": "none"})
+    
+    # Return authentication method based on server type
+    if user.server.server_type == "plex":
+        return jsonify({"auth_method": "plex"})
+    elif user.server.server_type in ["jellyfin", "emby", "audiobookshelf"]:
+        return jsonify({"auth_method": "password"})
     else:
-        return _handle_code_login(server_type)
+        return jsonify({"auth_method": "none"})
 
 
 def _handle_plex_login(server_type):
@@ -215,6 +229,139 @@ def _handle_code_login(server_type):
     flash(_("Successfully signed in!"), "success")
     
     # Redirect to user account page
+    return redirect(url_for("public.user_status"))
+
+
+def _handle_email_login():
+    """Handle email-based login with automatic server detection."""
+    email = request.form.get("email", "").strip()
+    password = request.form.get("password", "").strip()
+    token = request.form.get("token", "").strip()  # For Plex OAuth
+    selected_server_id = request.form.get("selected_server_id")
+    
+    if not email:
+        flash(_("Email address is required."), "error")
+        return redirect(url_for("auth.user_login"))
+    
+    # Find all users with this email across all servers
+    users = User.query.filter(User.email.ilike(email)).all()
+    
+    if not users:
+        flash(_("No account found with that email address."), "error")
+        return redirect(url_for("auth.user_login"))
+    
+    # Group users by server
+    servers = {}
+    for user in users:
+        if user.server:
+            servers[user.server.id] = {
+                "server": user.server,
+                "user": user
+            }
+    
+    # If specific server was selected, authenticate with that server
+    if selected_server_id:
+        try:
+            server_id = int(selected_server_id)
+            if server_id not in servers:
+                flash(_("Invalid server selection."), "error")
+                return redirect(url_for("auth.user_login"))
+            
+            return _authenticate_with_server(servers[server_id], password, token)
+                
+        except ValueError:
+            flash(_("Invalid server selection."), "error")
+            return redirect(url_for("auth.user_login"))
+    
+    # If multiple servers found, show server selection
+    elif len(servers) > 1:
+        # Get admin email and logo for template
+        admin_email_setting = Settings.query.filter_by(key="admin_email").first()
+        admin_email = admin_email_setting.value if admin_email_setting else None
+        
+        server_logo_setting = Settings.query.filter_by(key="server_logo_url").first()
+        server_logo_url = server_logo_setting.value if server_logo_setting else None
+        
+        # Return server selection page
+        return render_template(
+            "user-login.html",
+            servers=list(servers.values()),
+            email=email,
+            password=password,
+            show_server_selection=True,
+            admin_email=admin_email,
+            server_logo_url=server_logo_url
+        )
+    
+    # Single server found - authenticate directly
+    else:
+        server_info = list(servers.values())[0]
+        return _authenticate_with_server(server_info, password, token)
+
+
+def _authenticate_with_server(server_info, password, token):
+    """Authenticate user with a specific server."""
+    server = server_info["server"]
+    user = server_info["user"]
+    
+    # Get admin email and logo for error cases
+    admin_email_setting = Settings.query.filter_by(key="admin_email").first()
+    admin_email = admin_email_setting.value if admin_email_setting else None
+    
+    server_logo_setting = Settings.query.filter_by(key="server_logo_url").first()
+    server_logo_url = server_logo_setting.value if server_logo_setting else None
+    
+    # Handle authentication based on server type
+    if server.server_type == "plex":
+        # Handle Plex OAuth
+        if not token:
+            flash(_("Plex authentication required. Please use Plex sign-in."), "error")
+            return redirect(url_for("auth.user_login"))
+        
+        try:
+            from plexapi.myplex import MyPlexAccount
+            account = MyPlexAccount(token=token)
+            
+            # Verify the token belongs to this user
+            if account.email.lower() != user.email.lower():
+                flash(_("Plex account does not match registered email."), "error")
+                return redirect(url_for("auth.user_login"))
+                
+            # Update user's token
+            user.token = token
+            db.session.commit()
+            
+        except Exception as e:
+            logging.error(f"Plex authentication error: {e}")
+            flash(_("Plex authentication failed. Please try again."), "error")
+            return redirect(url_for("auth.user_login"))
+    
+    elif server.server_type in ["jellyfin", "emby", "audiobookshelf"]:
+        # Handle password-based authentication
+        if not password:
+            flash(_("Password is required for this server."), "error")
+            return redirect(url_for("auth.user_login"))
+        
+        try:
+            client = get_client_for_media_server(server)
+            
+            # Use username from the user record for authentication
+            if not client.validate_user_credentials(user.username, password):
+                flash(_("Invalid credentials."), "error")
+                return redirect(url_for("auth.user_login"))
+                
+        except Exception as e:
+            logging.error(f"Authentication error: {e}")
+            flash(_("Authentication failed. Please try again."), "error")
+            return redirect(url_for("auth.user_login"))
+    
+    else:
+        flash(_("Unsupported server type."), "error")
+        return redirect(url_for("auth.user_login"))
+    
+    # Authentication successful - set session
+    session["wizard_access"] = user.code
+    flash(_("Successfully signed in!"), "success")
     return redirect(url_for("public.user_status"))
 
 

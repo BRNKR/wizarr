@@ -191,11 +191,42 @@ def user_status():
     from app.models import Payment
     payments = Payment.query.filter_by(user_id=user.id).order_by(Payment.created_at.desc()).all()
     
-    # Calculate subscription status
+    # Get all user accounts across servers (if identity_id exists)
+    from app.models import User
+    all_user_accounts = []
+    if user.identity_id:
+        all_user_accounts = User.query.filter_by(identity_id=user.identity_id).all()
+    else:
+        # If no identity linking, just show current user
+        all_user_accounts = [user]
+    
+    # Calculate subscription status for each account
     from datetime import datetime, timezone
     now = datetime.now(timezone.utc)
     
-    # Handle timezone-naive datetime comparison
+    server_accounts = []
+    for account in all_user_accounts:
+        # Handle timezone-naive datetime comparison
+        account_expires = account.expires
+        if account_expires and not account_expires.tzinfo:
+            account_expires = account_expires.replace(tzinfo=timezone.utc)
+        
+        account_is_active = account_expires is None or account_expires > now
+        account_days_remaining = None
+        
+        if account_expires and account_is_active:
+            account_days_remaining = (account_expires - now).days
+        
+        server_accounts.append({
+            'user': account,
+            'server': account.server,
+            'is_active': account_is_active,
+            'days_remaining': account_days_remaining,
+            'expires': account_expires,
+            'is_current': account.id == user.id
+        })
+    
+    # Primary account status (current user)
     user_expires = user.expires
     if user_expires and not user_expires.tzinfo:
         user_expires = user_expires.replace(tzinfo=timezone.utc)
@@ -214,4 +245,6 @@ def user_status():
                          user_expires=user_expires,
                          payments=payments,
                          payment_available=payment_available,
-                         kofi_settings=kofi_settings)
+                         kofi_settings=kofi_settings,
+                         server_accounts=server_accounts,
+                         has_multiple_servers=len(server_accounts) > 1)

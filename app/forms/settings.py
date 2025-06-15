@@ -41,3 +41,12 @@ class PaymentSettingsForm(FlaskForm):
     kofi_1_month_price = DecimalField("1 Month Price (USD)", validators=[Optional(), NumberRange(min=0.01)], places=2)
     kofi_3_month_price = DecimalField("3 Month Price (USD)", validators=[Optional(), NumberRange(min=0.01)], places=2)  
     kofi_6_month_price = DecimalField("6 Month Price (USD)", validators=[Optional(), NumberRange(min=0.01)], places=2)
+    payment_model = SelectField(
+        "Payment Model", 
+        choices=[
+            ("per_server", "Per Server (users pay for each server individually)"),
+            ("all_servers", "All Servers (one payment covers access to all servers)")
+        ],
+        validators=[Optional()],
+        description="Choose whether payments cover access to one server or all servers"
+    )

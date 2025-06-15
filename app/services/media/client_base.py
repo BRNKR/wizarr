@@ -132,3 +132,11 @@ class MediaClient(ABC):
     @abstractmethod
     def get_user(self, *args, **kwargs):
         raise NotImplementedError
+
+    @abstractmethod
+    def validate_user_credentials(self, username: str, password: str) -> bool:
+        """Validate user credentials against the media server.
+        
+        Returns True if credentials are valid, False otherwise.
+        """
+        raise NotImplementedError

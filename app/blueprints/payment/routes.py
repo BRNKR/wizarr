@@ -36,20 +36,47 @@ def kofi_webhook():
             logging.error(f"Payment amount {payment_data['amount']} does not match any configured price")
             return "Invalid amount", 400
         
-        # Extract user email from message (users need to include their email in Ko-fi message)
-        message = payment_data.get('message', '').lower()
+        # Extract user email and optional server identifier from Ko-fi message
+        message = payment_data.get('message', '')
         user = None
+        server_identifier = None
         
-        # Try to find user email in the message
+        # Parse email and optional server identifier from message
+        # Expected formats:
+        # - user@example.com
+        # - user@example.com server:plex-main
+        # - user@example.com server:jellyfin-home
         import re
+        
+        # Extract email from message
         email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
-        emails = re.findall(email_pattern, message)
+        emails = re.findall(email_pattern, message, re.IGNORECASE)
+        
+        # Extract server identifier if present
+        server_pattern = r'server:([a-zA-Z0-9\-_]+)'
+        server_matches = re.findall(server_pattern, message, re.IGNORECASE)
+        if server_matches:
+            server_identifier = server_matches[0]
         
         if emails:
-            user = KofiService.find_user_by_email(emails[0])
+            user_email = emails[0].lower()
+            user = KofiService.find_user_by_email(user_email)
+            
+            # If server identifier is provided, try to find user on that specific server
+            if server_identifier and not user:
+                # Find user by email and server identifier
+                from app.models import MediaServer
+                server = MediaServer.query.filter_by(name=server_identifier).first()
+                if server:
+                    users_on_server = User.query.filter(
+                        User.email.ilike(user_email),
+                        User.server_id == server.id
+                    ).all()
+                    if users_on_server:
+                        user = users_on_server[0]
         
         if not user:
-            logging.error(f"Could not find user from Ko-fi payment message: {message}")
+            logging.error(f"Could not find user from Ko-fi payment message. Email extracted: {emails[0] if emails else 'None'}, Server: {server_identifier or 'None'}, Message: {message}")
             return "User not found", 400
         
         # Process payment and extend user account
